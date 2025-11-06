@@ -67,7 +67,8 @@ class _LaporanFormScreenState extends State<LaporanFormScreen> {
         throw Exception('User tidak terautentikasi');
       }
 
-      final response = await Supabase.instance.client.from('reports').insert({
+      // Updated Supabase insert without execute()
+      await Supabase.instance.client.from('reports').insert({
         'judul_pekerjaan': _judulController.text.trim(),
         'lokasi_pekerjaan': _lokasiController.text.trim(),
         'deskripsi': _deskripsiController.text.trim(),
@@ -75,19 +76,23 @@ class _LaporanFormScreenState extends State<LaporanFormScreen> {
         'status': 'tertunda',
         'teknisi_id': userId,
         'created_at': DateTime.now().toIso8601String(),
-      }).execute();
+      });
 
       if (!mounted) return;
-
-      if (response.error != null) {
-        throw Exception(response.error!.message);
-      }
 
       Navigator.pop(context, true);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Laporan berhasil disimpan'),
           backgroundColor: Colors.green,
+        ),
+      );
+    } on PostgrestException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Database Error: ${e.message}'),
+          backgroundColor: Colors.red,
         ),
       );
     } catch (e) {
