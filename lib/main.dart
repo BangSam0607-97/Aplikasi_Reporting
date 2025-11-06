@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:aplikasi_reporting/screens/laporan_form_screen.dart';
+import 'package:aplikasi_reporting/screens/dashboard_teknisi_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -16,7 +16,7 @@ class MyApp extends StatelessWidget {
         primarySwatch: Colors.blue,
         visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
-      home: const LaporanFormScreen(),
+      home: const DashboardTeknisiScreen(),
       debugShowCheckedModeBanner: false,
     );
   }
