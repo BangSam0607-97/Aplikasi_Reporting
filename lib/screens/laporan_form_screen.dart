@@ -15,6 +15,8 @@ class _LaporanFormScreenState extends State<LaporanFormScreen> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _judulController = TextEditingController();
   final TextEditingController _deskripsiController = TextEditingController();
+  final TextEditingController _lokasiController =
+      TextEditingController(); // Add this
   DateTime _selectedDate = DateTime.now();
   Position? _currentPosition;
   File? _image;
@@ -80,6 +82,38 @@ class _LaporanFormScreenState extends State<LaporanFormScreen> {
     }
   }
 
+  void _showImageSourceDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Pilih Sumber Gambar'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.camera_alt),
+                title: const Text('Kamera'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickImage(ImageSource.camera);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library),
+                title: const Text('Galeri'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickImage(ImageSource.gallery);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -104,6 +138,22 @@ class _LaporanFormScreenState extends State<LaporanFormScreen> {
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Mohon isi judul pekerjaan';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+
+              // Lokasi Pekerjaan
+              TextFormField(
+                controller: _lokasiController,
+                decoration: const InputDecoration(
+                  labelText: 'Lokasi Pekerjaan',
+                  border: OutlineInputBorder(),
+                ),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Mohon isi lokasi pekerjaan';
                   }
                   return null;
                 },
@@ -140,18 +190,18 @@ class _LaporanFormScreenState extends State<LaporanFormScreen> {
               ),
               const SizedBox(height: 16),
 
-              // Lokasi
+              // Koordinat Lokasi
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(8.0),
                   child: Column(
                     children: [
-                      Text(_locationText),
+                      Text('Koordinat: $_locationText'),
                       const SizedBox(height: 8),
                       ElevatedButton.icon(
                         onPressed: _getLocation,
                         icon: const Icon(Icons.location_on),
-                        label: const Text('Dapatkan Lokasi'),
+                        label: const Text('Dapatkan Koordinat'),
                       ),
                     ],
                   ),
@@ -159,7 +209,7 @@ class _LaporanFormScreenState extends State<LaporanFormScreen> {
               ),
               const SizedBox(height: 16),
 
-              // Foto
+              // Foto dengan single button
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(8.0),
@@ -173,20 +223,10 @@ class _LaporanFormScreenState extends State<LaporanFormScreen> {
                           fit: BoxFit.cover,
                         ),
                       const SizedBox(height: 8),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          ElevatedButton.icon(
-                            onPressed: () => _pickImage(ImageSource.camera),
-                            icon: const Icon(Icons.camera_alt),
-                            label: const Text('Kamera'),
-                          ),
-                          ElevatedButton.icon(
-                            onPressed: () => _pickImage(ImageSource.gallery),
-                            icon: const Icon(Icons.photo_library),
-                            label: const Text('Galeri'),
-                          ),
-                        ],
+                      ElevatedButton.icon(
+                        onPressed: _showImageSourceDialog,
+                        icon: const Icon(Icons.add_a_photo),
+                        label: const Text('Ambil Foto'),
                       ),
                     ],
                   ),
