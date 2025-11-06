@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:aplikasi_reporting/screens/laporan_form_screen.dart';
+import 'package:aplikasi_reporting/screens/Teknisi/laporan_form_screen.dart';
 
 class DashboardTeknisiScreen extends StatefulWidget {
   const DashboardTeknisiScreen({Key? key}) : super(key: key);
@@ -118,44 +118,6 @@ class _DashboardTeknisiScreenState extends State<DashboardTeknisiScreen> {
                   ),
                 ),
               ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // Recent Reports Section
-            const Text(
-              'Laporan Terbaru',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            Expanded(
-              child:
-                  _laporanTertunda == 0 &&
-                      _laporanDiproses == 0 &&
-                      _laporanSelesai == 0
-                  ? const Center(
-                      child: Text(
-                        'Belum ada laporan',
-                        style: TextStyle(fontSize: 16, color: Colors.grey),
-                      ),
-                    )
-                  : ListView.builder(
-                      itemCount: 5,
-                      itemBuilder: (context, index) {
-                        return Card(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          child: ListTile(
-                            leading: const CircleAvatar(
-                              backgroundColor: Colors.blue,
-                              child: Icon(Icons.work, color: Colors.white),
-                            ),
-                            title: Text('Laporan #${index + 1}'),
-                            subtitle: Text('Deskripsi laporan ${index + 1}'),
-                            trailing: _getStatusChip(index),
-                          ),
-                        );
-                      },
-                    ),
             ),
           ],
         ),
