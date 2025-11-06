@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
-import 'dart:io';
 
 class LaporanFormScreen extends StatefulWidget {
   const LaporanFormScreen({Key? key}) : super(key: key);
@@ -15,58 +12,8 @@ class _LaporanFormScreenState extends State<LaporanFormScreen> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _judulController = TextEditingController();
   final TextEditingController _deskripsiController = TextEditingController();
-  final TextEditingController _lokasiController =
-      TextEditingController(); // Add this
+  final TextEditingController _lokasiController = TextEditingController();
   DateTime _selectedDate = DateTime.now();
-  Position? _currentPosition;
-  File? _image;
-  String _locationText = "Belum ada lokasi";
-
-  Future<void> _getLocation() async {
-    bool serviceEnabled;
-    LocationPermission permission;
-
-    serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      return;
-    }
-
-    permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) {
-        return;
-      }
-    }
-
-    try {
-      Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-      );
-      setState(() {
-        _currentPosition = position;
-        _locationText =
-            'Lat: ${position.latitude.toStringAsFixed(4)}, Long: ${position.longitude.toStringAsFixed(4)}';
-      });
-    } catch (e) {
-      print('Error getting location: $e');
-    }
-  }
-
-  Future<void> _pickImage(ImageSource source) async {
-    try {
-      final ImagePicker picker = ImagePicker();
-      final XFile? pickedFile = await picker.pickImage(source: source);
-
-      if (pickedFile != null) {
-        setState(() {
-          _image = File(pickedFile.path);
-        });
-      }
-    } catch (e) {
-      print('Error picking image: $e');
-    }
-  }
 
   Future<void> _selectDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
@@ -80,38 +27,6 @@ class _LaporanFormScreenState extends State<LaporanFormScreen> {
         _selectedDate = picked;
       });
     }
-  }
-
-  void _showImageSourceDialog() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Pilih Sumber Gambar'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.camera_alt),
-                title: const Text('Kamera'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _pickImage(ImageSource.camera);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.photo_library),
-                title: const Text('Galeri'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _pickImage(ImageSource.gallery);
-                },
-              ),
-            ],
-          ),
-        );
-      },
-    );
   }
 
   @override
@@ -188,57 +103,12 @@ class _LaporanFormScreenState extends State<LaporanFormScreen> {
                   return null;
                 },
               ),
-              const SizedBox(height: 16),
-
-              // Koordinat Lokasi
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Column(
-                    children: [
-                      Text('Koordinat: $_locationText'),
-                      const SizedBox(height: 8),
-                      ElevatedButton.icon(
-                        onPressed: _getLocation,
-                        icon: const Icon(Icons.location_on),
-                        label: const Text('Dapatkan Koordinat'),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Foto dengan single button
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Column(
-                    children: [
-                      if (_image != null)
-                        Image.file(
-                          _image!,
-                          height: 200,
-                          width: double.infinity,
-                          fit: BoxFit.cover,
-                        ),
-                      const SizedBox(height: 8),
-                      ElevatedButton.icon(
-                        onPressed: _showImageSourceDialog,
-                        icon: const Icon(Icons.add_a_photo),
-                        label: const Text('Ambil Foto'),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
               const SizedBox(height: 24),
 
               // Tombol Submit
               ElevatedButton(
                 onPressed: () {
                   if (_formKey.currentState!.validate()) {
-                    // TODO: Implement save functionality
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('Menyimpan laporan...')),
                     );

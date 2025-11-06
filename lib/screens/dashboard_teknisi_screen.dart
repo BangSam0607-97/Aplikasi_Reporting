@@ -9,32 +9,39 @@ class DashboardTeknisiScreen extends StatefulWidget {
 }
 
 class _DashboardTeknisiScreenState extends State<DashboardTeknisiScreen> {
-  // Dummy data untuk contoh
-  final int _laporanTertunda = 5;
-  final int _laporanDiproses = 3;
-  final int _laporanSelesai = 10;
+  // Initialize counters as zero
+  final int _laporanTertunda = 0;
+  final int _laporanDiproses = 0;
+  final int _laporanSelesai = 0;
 
   Widget _buildStatusCard(String title, int count, Color color) {
-    return Card(
-      elevation: 4,
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            Text(
-              title,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              count.toString(),
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: color,
+    return Expanded(
+      child: Card(
+        elevation: 4,
+        child: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
               ),
-            ),
-          ],
+              const SizedBox(height: 4),
+              Text(
+                count.toString(),
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -52,64 +59,65 @@ class _DashboardTeknisiScreenState extends State<DashboardTeknisiScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Status Cards
-            GridView.count(
-              crossAxisCount: 2,
-              shrinkWrap: true,
-              crossAxisSpacing: 16.0,
-              mainAxisSpacing: 16.0,
+            // Status Cards in horizontal row
+            Row(
               children: [
                 _buildStatusCard(
-                  'Laporan Tertunda',
+                  'Laporan\nTertunda',
                   _laporanTertunda,
                   Colors.orange,
                 ),
+                const SizedBox(width: 8),
                 _buildStatusCard(
-                  'Sedang Diproses',
+                  'Sedang\nDiproses',
                   _laporanDiproses,
                   Colors.blue,
                 ),
+                const SizedBox(width: 8),
                 _buildStatusCard(
-                  'Laporan Selesai',
+                  'Laporan\nSelesai',
                   _laporanSelesai,
                   Colors.green,
                 ),
-                Card(
-                  elevation: 4,
-                  child: InkWell(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const LaporanFormScreen(),
-                        ),
-                      );
-                    },
-                    child: const Padding(
-                      padding: EdgeInsets.all(16.0),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.add_circle_outline,
-                            size: 40,
-                            color: Colors.blue,
-                          ),
-                          SizedBox(height: 8),
-                          Text(
-                            'Buat Laporan\nBaru',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
+              ],
+            ),
+
+            const SizedBox(height: 16),
+
+            // Create New Report Card
+            Card(
+              elevation: 4,
+              child: InkWell(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const LaporanFormScreen(),
                     ),
+                  );
+                },
+                child: const Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.add_circle_outline,
+                        size: 24,
+                        color: Colors.blue,
+                      ),
+                      SizedBox(width: 8),
+                      Text(
+                        'Buat Laporan Baru',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ],
+              ),
             ),
 
             const SizedBox(height: 24),
@@ -121,23 +129,33 @@ class _DashboardTeknisiScreenState extends State<DashboardTeknisiScreen> {
             ),
             const SizedBox(height: 16),
             Expanded(
-              child: ListView.builder(
-                itemCount: 5,
-                itemBuilder: (context, index) {
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    child: ListTile(
-                      leading: const CircleAvatar(
-                        backgroundColor: Colors.blue,
-                        child: Icon(Icons.work, color: Colors.white),
+              child:
+                  _laporanTertunda == 0 &&
+                      _laporanDiproses == 0 &&
+                      _laporanSelesai == 0
+                  ? const Center(
+                      child: Text(
+                        'Belum ada laporan',
+                        style: TextStyle(fontSize: 16, color: Colors.grey),
                       ),
-                      title: Text('Laporan #${index + 1}'),
-                      subtitle: Text('Deskripsi laporan ${index + 1}'),
-                      trailing: _getStatusChip(index),
+                    )
+                  : ListView.builder(
+                      itemCount: 5,
+                      itemBuilder: (context, index) {
+                        return Card(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          child: ListTile(
+                            leading: const CircleAvatar(
+                              backgroundColor: Colors.blue,
+                              child: Icon(Icons.work, color: Colors.white),
+                            ),
+                            title: Text('Laporan #${index + 1}'),
+                            subtitle: Text('Deskripsi laporan ${index + 1}'),
+                            trailing: _getStatusChip(index),
+                          ),
+                        );
+                      },
                     ),
-                  );
-                },
-              ),
             ),
           ],
         ),
