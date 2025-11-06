@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:aplikasi_reporting/screens/Teknisi/laporan_form_screen.dart';
+import 'package:aplikasi_reporting/screens/teknisi/laporan_form_screen.dart';
 
 class DashboardTeknisiScreen extends StatefulWidget {
   const DashboardTeknisiScreen({Key? key}) : super(key: key);
