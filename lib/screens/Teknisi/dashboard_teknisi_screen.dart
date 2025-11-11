@@ -40,7 +40,8 @@ class _DashboardTeknisiScreenState extends State<DashboardTeknisiScreen> {
           .select('full_name')
           .eq('id', userId)
           .single();
-      final userName = (userResp as Map<String, dynamic>)['full_name'] as String?;
+      final userName =
+          (userResp as Map<String, dynamic>)['full_name'] as String?;
 
       // Get reports
       final reportsResp = await Supabase.instance.client
@@ -66,7 +67,9 @@ class _DashboardTeknisiScreenState extends State<DashboardTeknisiScreen> {
         _laporanTertunda = tertunda;
         _laporanDiproses = diproses;
         _laporanSelesai = selesai;
-        _laporanList = reports.map((r) => Map<String, dynamic>.from(r)).toList();
+        _laporanList = reports
+            .map((r) => Map<String, dynamic>.from(r))
+            .toList();
         _loading = false;
       });
     } catch (e) {
@@ -74,7 +77,10 @@ class _DashboardTeknisiScreenState extends State<DashboardTeknisiScreen> {
       print('Error loading data: $e');
       setState(() => _loading = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: ${e.toString()}'), backgroundColor: Colors.red),
+        SnackBar(
+          content: Text('Error: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
@@ -86,7 +92,10 @@ class _DashboardTeknisiScreenState extends State<DashboardTeknisiScreen> {
         title: const Text('Logout'),
         content: const Text('Apakah Anda yakin ingin logout?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Batal')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Batal'),
+          ),
           TextButton(
             onPressed: () async {
               await Supabase.instance.client.auth.signOut();
@@ -111,9 +120,23 @@ class _DashboardTeknisiScreenState extends State<DashboardTeknisiScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(title, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
               const SizedBox(height: 4),
-              Text(count.toString(), style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color)),
+              Text(
+                count.toString(),
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
+              ),
             ],
           ),
         ),
@@ -127,16 +150,24 @@ class _DashboardTeknisiScreenState extends State<DashboardTeknisiScreen> {
     try {
       await Supabase.instance.client
           .from('reports')
-          .update({'status': 'selesai'}).eq('id', reportId).select();
+          .update({'status': 'selesai'})
+          .eq('id', reportId)
+          .select();
       await _loadData();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Laporan ditandai selesai'), backgroundColor: Colors.green),
+        const SnackBar(
+          content: Text('Laporan ditandai selesai'),
+          backgroundColor: Colors.green,
+        ),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal update: ${e.toString()}'), backgroundColor: Colors.red),
+        SnackBar(
+          content: Text('Gagal update: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
       );
     } finally {
       if (!mounted) return;
@@ -149,8 +180,8 @@ class _DashboardTeknisiScreenState extends State<DashboardTeknisiScreen> {
     final statusColor = status == 'tertunda'
         ? Colors.orange
         : status == 'diproses'
-            ? Colors.blue
-            : Colors.green;
+        ? Colors.blue
+        : Colors.green;
     final id = (laporan['id'] ?? '').toString();
 
     return Card(
@@ -161,9 +192,15 @@ class _DashboardTeknisiScreenState extends State<DashboardTeknisiScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 4),
-            Text('Lokasi: ${laporan['lokasi_pekerjaan'] ?? '—'}', style: const TextStyle(fontSize: 12)),
+            Text(
+              'Lokasi: ${laporan['lokasi_pekerjaan'] ?? '—'}',
+              style: const TextStyle(fontSize: 12),
+            ),
             const SizedBox(height: 2),
-            Text('Tanggal: ${laporan['tanggal_pekerjaan'] ?? '—'}', style: const TextStyle(fontSize: 12)),
+            Text(
+              'Tanggal: ${laporan['tanggal_pekerjaan'] ?? '—'}',
+              style: const TextStyle(fontSize: 12),
+            ),
           ],
         ),
         trailing: Column(
@@ -172,20 +209,34 @@ class _DashboardTeknisiScreenState extends State<DashboardTeknisiScreen> {
             Chip(
               label: Text(status.toUpperCase()),
               backgroundColor: statusColor.withOpacity(0.2),
-              labelStyle: TextStyle(color: statusColor, fontWeight: FontWeight.bold),
+              labelStyle: TextStyle(
+                color: statusColor,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const SizedBox(height: 6),
             if (status != 'selesai')
               _updatingReportIds.contains(id)
-                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
                   : ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: status == 'tertunda' ? Colors.orange : Colors.blue,
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        backgroundColor: status == 'tertunda'
+                            ? Colors.orange
+                            : Colors.blue,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
                         minimumSize: const Size(0, 36),
                       ),
                       onPressed: () => _markReportDone(id),
-                      child: Text(status == 'tertunda' ? 'Mulai / Selesai' : 'Selesai'),
+                      child: Text(
+                        status == 'tertunda' ? 'Mulai / Selesai' : 'Selesai',
+                      ),
                     ),
           ],
         ),
@@ -204,7 +255,11 @@ class _DashboardTeknisiScreenState extends State<DashboardTeknisiScreen> {
         backgroundColor: Colors.blue,
         elevation: 0,
         actions: [
-          IconButton(icon: const Icon(Icons.logout), onPressed: _logout, tooltip: 'Logout'),
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: _logout,
+            tooltip: 'Logout',
+          ),
         ],
       ),
       body: _loading
