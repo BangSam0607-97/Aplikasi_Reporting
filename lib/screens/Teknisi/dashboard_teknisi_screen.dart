@@ -124,26 +124,4 @@ class _DashboardTeknisiScreenState extends State<DashboardTeknisiScreen> {
       ),
     );
   }
-
-  Widget _getStatusChip(int index) {
-    if (index == 0) {
-      return const Chip(
-        label: Text('Tertunda'),
-        backgroundColor: Colors.orange,
-        labelStyle: TextStyle(color: Colors.white),
-      );
-    } else if (index == 1) {
-      return const Chip(
-        label: Text('Diproses'),
-        backgroundColor: Colors.blue,
-        labelStyle: TextStyle(color: Colors.white),
-      );
-    } else {
-      return const Chip(
-        label: Text('Selesai'),
-        backgroundColor: Colors.green,
-        labelStyle: TextStyle(color: Colors.white),
-      );
-    }
-  }
 }

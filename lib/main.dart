@@ -9,9 +9,9 @@ void main() async {
   await initializeDateFormatting('id_ID', null);
 
   await Supabase.initialize(
-    url: 'https://etvexypswbstgpywxjis.supabase.co',
+    url: 'https://plixjozypuontjqdkdhi.supabase.co',
     anonKey:
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV0dmV4eXBzd2JzdGdweXd4amlzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MDM4MjI1ODMsImV4cCI6MjAxOTM5ODU4M30.Lxdr3eZ8kVhJI3lvTZwFnpxUDeVgGBlbM5bj6bYTZRM',
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBsaXhqb3p5cHVvbnRqcWRrZGhpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI0Mjk1MTUsImV4cCI6MjA3ODAwNTUxNX0.0jxzH7iDfDAlgPk7kThnpaFSeKLaHQ-IwyLtBRN2TAE',
   );
 
   runApp(const MyApp());

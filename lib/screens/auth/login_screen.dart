@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../teknisi/dashboard_teknisi_screen.dart';
 import '../supervisor/dashboard_supervisor_screen.dart';
+import 'register_screen.dart'; // baru
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -70,14 +71,14 @@ class _LoginScreenState extends State<LoginScreen> {
         return;
       }
 
-      // Check user role from database
-      final userData = await Supabase.instance.client
-          .from('users')
-          .select('role')
-          .eq('id', response.user!.id)
-          .single();
-
-      if (!mounted) return;
+      // Check user role
+      final userData =
+          await Supabase.instance.client
+                  .from('users')
+                  .select('role')
+                  .eq('id', response.user!.id)
+                  .single()
+              as Map<String, dynamic>;
 
       if (userData['role'] == _selectedRole) {
         Navigator.of(context).pushReplacement(
@@ -229,6 +230,26 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           )
                         : const Text('Login', style: TextStyle(fontSize: 16)),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // Tombol daftar
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Text('Belum punya akun?'),
+                      TextButton(
+                        onPressed: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const RegisterScreen(),
+                            ),
+                          );
+                        },
+                        child: const Text('Daftar di sini'),
+                      ),
+                    ],
                   ),
                 ],
               ),
