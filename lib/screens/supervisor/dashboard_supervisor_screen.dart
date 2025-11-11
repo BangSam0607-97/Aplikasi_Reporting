@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../auth/login_screen.dart';
 
 class DashboardSupervisorScreen extends StatefulWidget {
   const DashboardSupervisorScreen({Key? key}) : super(key: key);
@@ -160,6 +161,35 @@ class _DashboardSupervisorScreenState extends State<DashboardSupervisorScreen> {
     }
   }
 
+  // Tambahan: fungsi logout
+  Future<void> _logout() async {
+    final doLogout = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Logout'),
+        content: const Text('Apakah Anda yakin ingin logout?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Batal'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Logout', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (doLogout == true) {
+      await Supabase.instance.client.auth.signOut();
+      if (!mounted) return;
+      Navigator.of(
+        context,
+      ).pushReplacement(MaterialPageRoute(builder: (_) => const LoginScreen()));
+    }
+  }
+
   Widget _statusCard(String label, int count, Color color) {
     return Expanded(
       child: Card(
@@ -290,6 +320,11 @@ class _DashboardSupervisorScreenState extends State<DashboardSupervisorScreen> {
       appBar: AppBar(
         title: const Text('Dashboard Supervisor'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: _logout,
+            tooltip: 'Logout',
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loadStats,
