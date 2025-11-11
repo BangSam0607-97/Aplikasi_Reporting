@@ -146,25 +146,55 @@ class _DashboardTeknisiScreenState extends State<DashboardTeknisiScreen> {
 
   Future<void> _markReportDone(String reportId) async {
     if (_updatingReportIds.contains(reportId)) return;
-    // debug log
-    debugPrint('TAPPED _markReportDone: $reportId');
-    setState(() => _updatingReportIds.add(reportId));
-    try {
-      await Supabase.instance.client
-          .from('reports')
-          .update({'status': 'selesai'})
-          .eq('id', reportId)
-          .select();
-      await _loadData();
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Laporan ditandai selesai'),
-          backgroundColor: Colors.green,
+          content: Text('User belum terautentikasi'),
+          backgroundColor: Colors.red,
         ),
       );
+      return;
+    }
+
+    debugPrint('TAPPED _markReportDone: $reportId by $userId');
+    setState(() => _updatingReportIds.add(reportId));
+    try {
+      // only update if the current user is the teknisi_id (prevents RLS rejection)
+      final resp = await Supabase.instance.client
+          .from('reports')
+          .update({'status': 'selesai'})
+          .eq('id', reportId)
+          .eq('teknisi_id', userId)
+          .select();
+
+      // resp may be List or Map depending on supabase sdk; treat empty result as failure
+      final updated = resp is List ? resp.isNotEmpty : resp != null;
+
+      if (!updated) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Gagal mengupdate: tidak ditemukan atau tidak diizinkan',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      } else {
+        await _loadData();
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Laporan ditandai selesai'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
     } catch (e) {
       if (!mounted) return;
+      debugPrint('Error _markReportDone: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Gagal update: ${e.toString()}'),
@@ -185,6 +215,9 @@ class _DashboardTeknisiScreenState extends State<DashboardTeknisiScreen> {
         ? Colors.blue
         : Colors.green;
     final id = (laporan['id'] ?? '').toString();
+    final teknisiId = (laporan['teknisi_id'] ?? '').toString();
+    final currentUserId = Supabase.instance.client.auth.currentUser?.id;
+    final isOwner = currentUserId != null && currentUserId == teknisiId;
 
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 6),
@@ -205,7 +238,7 @@ class _DashboardTeknisiScreenState extends State<DashboardTeknisiScreen> {
             ),
           ],
         ),
-        trailing: Column(
+        trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Chip(
@@ -214,32 +247,34 @@ class _DashboardTeknisiScreenState extends State<DashboardTeknisiScreen> {
               labelStyle: TextStyle(
                 color: statusColor,
                 fontWeight: FontWeight.bold,
+                fontSize: 11,
               ),
             ),
-            const SizedBox(height: 6),
-            if (status != 'selesai')
+            const SizedBox(width: 8),
+            if (status != 'selesai' && isOwner)
               _updatingReportIds.contains(id)
                   ? const SizedBox(
-                      width: 20,
-                      height: 20,
+                      width: 32,
+                      height: 32,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: status == 'tertunda'
-                            ? Colors.orange
-                            : Colors.blue,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        minimumSize: const Size(0, 36),
-                      ),
+                  : IconButton(
+                      icon: const Icon(Icons.check_circle, color: Colors.green),
+                      tooltip: 'Tandai Selesai',
                       onPressed: () => _markReportDone(id),
-                      child: Text(
-                        status == 'tertunda' ? 'Mulai / Selesai' : 'Selesai',
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(
+                        minWidth: 32,
+                        minHeight: 32,
                       ),
                     ),
+            if (status == 'selesai' && isOwner)
+              const Icon(Icons.check_circle, color: Colors.green, size: 28),
+            if (!isOwner && status != 'selesai')
+              const Tooltip(
+                message: 'Bukan pekerjaan Anda',
+                child: Icon(Icons.lock, color: Colors.grey, size: 24),
+              ),
           ],
         ),
         onTap: () {
