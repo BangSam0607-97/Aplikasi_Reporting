@@ -17,6 +17,10 @@ class _DashboardSupervisorScreenState extends State<DashboardSupervisorScreen> {
   int _totalSelesai = 0;
   List<Map<String, dynamic>> _teknisiStats = [];
 
+  // cache laporan per teknisi
+  final Map<String, List<Map<String, dynamic>>> _reportsByTeknisi = {};
+  final Set<String> _loadingReportIds = {};
+
   @override
   void initState() {
     super.initState();
@@ -34,7 +38,6 @@ class _DashboardSupervisorScreenState extends State<DashboardSupervisorScreen> {
     try {
       final supabase = Supabase.instance.client;
 
-      // Updated query execution and error handling
       final reportsQuery = await supabase
           .from('reports')
           .select('''
@@ -51,25 +54,22 @@ class _DashboardSupervisorScreenState extends State<DashboardSupervisorScreen> {
 
       final reports = reportsQuery as List<dynamic>;
 
-      // Process data
       final Map<String, Map<String, dynamic>> teknisiMap = {};
       int tertunda = 0, diproses = 0, selesai = 0;
 
       for (final report in reports) {
-        final status = report['status'] as String;
+        final status = (report['status'] ?? '').toString();
         final teknisi = report['users'] as Map<String, dynamic>;
-        final teknisiId = teknisi['id'] as String;
+        final teknisiId = teknisi['id'].toString();
 
-        // Update total counts
         if (status == 'tertunda') tertunda++;
         if (status == 'diproses') diproses++;
         if (status == 'selesai') selesai++;
 
-        // Initialize or update teknisi stats
         if (!teknisiMap.containsKey(teknisiId)) {
           teknisiMap[teknisiId] = {
             'id': teknisiId,
-            'name': teknisi['full_name'],
+            'name': teknisi['full_name'] ?? '—',
             'tertunda': 0,
             'diproses': 0,
             'selesai': 0,
@@ -83,12 +83,10 @@ class _DashboardSupervisorScreenState extends State<DashboardSupervisorScreen> {
             (teknisiMap[teknisiId]!['total'] ?? 0) + 1;
       }
 
-      // Convert to list and sort
       final teknisiList = teknisiMap.values.toList()
         ..sort((a, b) => (b['total'] as int).compareTo(a['total'] as int));
 
       if (!mounted) return;
-
       setState(() {
         _totalTertunda = tertunda;
         _totalDiproses = diproses;
@@ -102,6 +100,63 @@ class _DashboardSupervisorScreenState extends State<DashboardSupervisorScreen> {
         _error = e.toString();
         _loading = false;
       });
+    }
+  }
+
+  Future<void> _fetchReportsForTeknisi(String teknisiId) async {
+    if (_reportsByTeknisi.containsKey(teknisiId)) return; // already loaded
+    try {
+      final resp = await Supabase.instance.client
+          .from('reports')
+          .select()
+          .eq('teknisi_id', teknisiId)
+          .order('created_at', ascending: false);
+      final List reports = resp as List<dynamic>;
+      if (!mounted) return;
+      setState(() {
+        _reportsByTeknisi[teknisiId] = reports
+            .map((r) => Map<String, dynamic>.from(r))
+            .toList();
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal memuat laporan: ${e.toString()}')),
+      );
+    }
+  }
+
+  Future<void> _approveReport(String reportId, String teknisiId) async {
+    if (_loadingReportIds.contains(reportId)) return;
+    setState(() => _loadingReportIds.add(reportId));
+    try {
+      await Supabase.instance.client
+          .from('reports')
+          .update({'status': 'diproses'})
+          .eq('id', reportId)
+          .select();
+      // refresh local cache + stats
+      _reportsByTeknisi.remove(teknisiId);
+      await _fetchReportsForTeknisi(teknisiId);
+      await _loadStats();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Laporan disetujui (diproses)'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal menyetujui: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (!mounted) return;
+      setState(() => _loadingReportIds.remove(reportId));
     }
   }
 
@@ -138,26 +193,80 @@ class _DashboardSupervisorScreenState extends State<DashboardSupervisorScreen> {
   }
 
   Widget _buildTeknisiRow(Map<String, dynamic> item) {
+    final teknisiId = item['id'] as String;
+    final name = item['name'] ?? 'Unknown';
+    final total = item['total'] ?? 0;
+
+    final reports = _reportsByTeknisi[teknisiId];
+
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
       child: ExpansionTile(
-        title: Text(
-          item['name'] ?? 'Unknown',
-          style: const TextStyle(fontWeight: FontWeight.w500),
-        ),
-        subtitle: Text('Total: ${item['total']} laporan'),
+        title: Text(name, style: const TextStyle(fontWeight: FontWeight.w500)),
+        subtitle: Text('Total: $total laporan'),
+        onExpansionChanged: (expanded) {
+          if (expanded) _fetchReportsForTeknisi(teknisiId);
+        },
         children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _statusChip('Tertunda', item['tertunda'] ?? 0, Colors.orange),
-                _statusChip('Diproses', item['diproses'] ?? 0, Colors.blue),
-                _statusChip('Selesai', item['selesai'] ?? 0, Colors.green),
-              ],
+          if (reports == null)
+            const Padding(
+              padding: EdgeInsets.all(12.0),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (reports.isEmpty)
+            const Padding(
+              padding: EdgeInsets.all(12.0),
+              child: Text('Belum ada laporan'),
+            )
+          else
+            Column(
+              children: reports.map((r) {
+                final status = (r['status'] ?? '').toString();
+                final jid = (r['id'] ?? '').toString();
+                final judul = r['judul_pekerjaan'] ?? '-';
+                final tanggal = r['tanggal_pekerjaan'] ?? '-';
+                Color statusColor = Colors.grey;
+                if (status == 'tertunda') statusColor = Colors.orange;
+                if (status == 'diproses') statusColor = Colors.blue;
+                if (status == 'selesai') statusColor = Colors.green;
+
+                return ListTile(
+                  title: Text(judul),
+                  subtitle: Text('Tanggal: $tanggal'),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Chip(
+                        label: Text(status.toUpperCase()),
+                        backgroundColor: statusColor.withOpacity(0.2),
+                        labelStyle: TextStyle(
+                          color: statusColor,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      if (status == 'tertunda')
+                        _loadingReportIds.contains(jid)
+                            ? const SizedBox(
+                                width: 36,
+                                height: 36,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : IconButton(
+                                icon: const Icon(
+                                  Icons.check_circle,
+                                  color: Colors.green,
+                                ),
+                                tooltip: 'Setujui / Proses',
+                                onPressed: () => _approveReport(jid, teknisiId),
+                              ),
+                    ],
+                  ),
+                );
+              }).toList(),
             ),
-          ),
         ],
       ),
     );
