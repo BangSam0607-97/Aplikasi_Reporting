@@ -146,6 +146,8 @@ class _DashboardTeknisiScreenState extends State<DashboardTeknisiScreen> {
 
   Future<void> _markReportDone(String reportId) async {
     if (_updatingReportIds.contains(reportId)) return;
+    // debug log
+    debugPrint('TAPPED _markReportDone: $reportId');
     setState(() => _updatingReportIds.add(reportId));
     try {
       await Supabase.instance.client
@@ -346,13 +348,10 @@ class _DashboardTeknisiScreenState extends State<DashboardTeknisiScreen> {
                               child: Text('Belum ada laporan'),
                             ),
                           )
-                        : ListView.builder(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            itemCount: _laporanList.length,
-                            itemBuilder: (context, index) {
-                              return _buildLaporanItem(_laporanList[index]);
-                            },
+                        : Column(
+                            children: _laporanList
+                                .map((lap) => _buildLaporanItem(lap))
+                                .toList(),
                           ),
                   ],
                 ),
