@@ -343,7 +343,7 @@ class _DashboardSupervisorScreenState extends State<DashboardSupervisorScreen> {
                 Text('Tanggal: $tanggal', style: const TextStyle(fontSize: 12)),
                 const SizedBox(height: 6),
                 Text(
-                  'Deskripsi: $deskripsi',
+                  deskripsi,
                   style: const TextStyle(
                     fontSize: 11,
                     fontStyle: FontStyle.italic,
@@ -354,7 +354,7 @@ class _DashboardSupervisorScreenState extends State<DashboardSupervisorScreen> {
               ],
             ),
             trailing: SizedBox(
-              width: 100,
+              width: 120,
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -375,25 +375,34 @@ class _DashboardSupervisorScreenState extends State<DashboardSupervisorScreen> {
                     ),
                   ),
                   const SizedBox(width: 6),
-                  // Hapus checklist hanya di status tertunda
-                  if (status != 'tertunda')
-                    if (_loadingReportIds.contains(jid))
-                      const SizedBox(
-                        width: 24,
-                        height: 24,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    else
-                      IconButton(
-                        icon: const Icon(
-                          Icons.check_circle,
-                          color: Colors.green,
-                          size: 20,
-                        ),
-                        tooltip: 'Selesai',
-                        onPressed: () => _approveReport(jid, teknisiId),
-                        padding: EdgeInsets.zero,
+                  if (_loadingReportIds.contains(jid))
+                    const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  else if (status == 'diproses')
+                    IconButton(
+                      icon: const Icon(
+                        Icons.check_circle,
+                        color: Colors.green,
+                        size: 20,
                       ),
+                      tooltip: 'Selesai',
+                      onPressed: () => _completeReport(jid),
+                      padding: EdgeInsets.zero,
+                    )
+                  else if (status == 'tertunda')
+                    IconButton(
+                      icon: const Icon(
+                        Icons.thumb_up,
+                        color: Colors.blue,
+                        size: 20,
+                      ),
+                      tooltip: 'Setujui',
+                      onPressed: () => _approveReport(jid, teknisiId),
+                      padding: EdgeInsets.zero,
+                    ),
                 ],
               ),
             ),
