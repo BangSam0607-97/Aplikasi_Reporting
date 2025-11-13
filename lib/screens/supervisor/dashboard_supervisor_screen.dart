@@ -3,6 +3,11 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../auth/login_screen.dart';
 
 class DashboardSupervisorScreen extends StatefulWidget {
+  /// DashboardSupervisorScreen: tampilan utama untuk user dengan role Supervisor.
+  ///
+  /// Menampilkan ringkasan jumlah laporan berdasarkan status (tertunda, diproses, selesai),
+  /// statistik per teknisi, dan daftar laporan yang difilter. Menyediakan aksi untuk
+  /// menyetujui laporan (mengubah status ke 'diproses'), menyegarkan data, dan logout.
   const DashboardSupervisorScreen({Key? key}) : super(key: key);
 
   @override
@@ -27,10 +32,14 @@ class _DashboardSupervisorScreenState extends State<DashboardSupervisorScreen> {
   @override
   void initState() {
     super.initState();
+    // Initialize and load summary statistics when the widget is inserted into the tree.
     _loadStats();
   }
 
   Future<void> _loadStats() async {
+    // Load aggregated report statistics and per-teknisi counts.
+    // Sets: _totalTertunda, _totalDiproses, _totalSelesai, _teknisiStats.
+    // Errors are caught and stored in _error.
     if (!mounted) return;
 
     setState(() {
@@ -107,6 +116,8 @@ class _DashboardSupervisorScreenState extends State<DashboardSupervisorScreen> {
   }
 
   Future<void> _loadReportsByStatus(String status) async {
+    // Load reports filtered by `status` and update _filteredReports/_selectedFilter.
+    // Used when the supervisor taps a status card.
     try {
       final resp = await Supabase.instance.client
           .from('reports')
@@ -132,6 +143,8 @@ class _DashboardSupervisorScreenState extends State<DashboardSupervisorScreen> {
   }
 
   Future<void> _fetchReportsForTeknisi(String teknisiId) async {
+    // Fetch and cache reports for a specific teknisi (by id).
+    // Skips network call if cache exists in _reportsByTeknisi.
     if (_reportsByTeknisi.containsKey(teknisiId)) return;
     try {
       final resp = await Supabase.instance.client
@@ -155,6 +168,8 @@ class _DashboardSupervisorScreenState extends State<DashboardSupervisorScreen> {
   }
 
   Future<void> _approveReport(String reportId, String teknisiId) async {
+    // Approve a report (set status -> 'diproses').
+    // Prevent duplicate requests using _loadingReportIds set.
     if (_loadingReportIds.contains(reportId)) return;
     setState(() => _loadingReportIds.add(reportId));
     try {
@@ -196,6 +211,7 @@ class _DashboardSupervisorScreenState extends State<DashboardSupervisorScreen> {
 
   // Tambahan: fungsi logout
   Future<void> _logout() async {
+    // Confirm logout and call Supabase signOut, then navigate to LoginScreen.
     final doLogout = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -224,6 +240,8 @@ class _DashboardSupervisorScreenState extends State<DashboardSupervisorScreen> {
   }
 
   Widget _statusCard(String label, int count, Color color, String filterKey) {
+    // Small reusable card used in the dashboard header showing a count and
+    // allowing the supervisor to tap to filter reports by the associated status.
     return Expanded(
       child: GestureDetector(
         onTap: () => _loadReportsByStatus(filterKey),
@@ -267,6 +285,8 @@ class _DashboardSupervisorScreenState extends State<DashboardSupervisorScreen> {
   }
 
   Widget _buildFilteredReportsList() {
+    // Build a list view for the currently selected status filter. Each item
+    // shows summary info and provides action buttons (approve for tertunda).
     if (_filteredReports.isEmpty) {
       return const Center(child: Text('Tidak ada laporan untuk filter ini'));
     }
@@ -416,6 +436,8 @@ class _DashboardSupervisorScreenState extends State<DashboardSupervisorScreen> {
   }
 
   Widget _buildTeknisiRow(Map<String, dynamic> item) {
+    // Build a row (ExpansionTile) for a teknisi that shows counts and, when expanded,
+    // lists that teknisi's reports (fetched on demand via _fetchReportsForTeknisi).
     final teknisiId = item['id'] as String;
     final name = item['name'] ?? 'Unknown';
     final total = item['total'] ?? 0;
@@ -477,7 +499,6 @@ class _DashboardSupervisorScreenState extends State<DashboardSupervisorScreen> {
             Column(
               children: reports.map((r) {
                 final status = (r['status'] ?? '').toString();
-                final jid = (r['id'] ?? '').toString();
                 final judul = r['judul_pekerjaan'] ?? '-';
                 final lokasi = r['lokasi_pekerjaan'] ?? '-';
                 final deskripsi = r['deskripsi'] ?? '-';
@@ -597,6 +618,8 @@ class _DashboardSupervisorScreenState extends State<DashboardSupervisorScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Build the main supervisor dashboard UI. The view adapts to internal
+    // state: loading, error, showing summary + teknisi list, or showing filtered reports.
     return Scaffold(
       appBar: AppBar(
         title: const Text('Dashboard Supervisor'),

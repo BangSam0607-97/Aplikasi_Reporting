@@ -3,6 +3,18 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'screens/auth/login_screen.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
+/// Program entry point and initial configuration.
+///
+/// This file performs minimal app bootstrap:
+/// - Initialize Flutter bindings
+/// - Initialize locale-specific date formatting (used by `intl`)
+/// - Initialize Supabase client
+/// - Launch the root widget `MyApp`
+///
+/// Security note: the anonKey used below is intended for client-side
+/// (browser/mobile) usage. Do NOT commit service_role keys or other
+/// sensitive secrets to a public repository.
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 

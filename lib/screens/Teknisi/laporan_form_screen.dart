@@ -3,6 +3,10 @@ import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class LaporanFormScreen extends StatefulWidget {
+  /// LaporanFormScreen: form untuk membuat laporan pekerjaan baru oleh teknisi.
+  ///
+  /// Fields: judul, lokasi, tanggal, deskripsi. Saat submit akan menyimpan baris
+  /// baru ke tabel `reports` dengan status 'tertunda' dan teknisi_id current user.
   const LaporanFormScreen({Key? key}) : super(key: key);
 
   @override
@@ -19,6 +23,7 @@ class _LaporanFormScreenState extends State<LaporanFormScreen> {
 
   @override
   void dispose() {
+    // Dispose semua controller untuk menghindari memory leak.
     _judulController.dispose();
     _deskripsiController.dispose();
     _lokasiController.dispose();
@@ -26,6 +31,9 @@ class _LaporanFormScreenState extends State<LaporanFormScreen> {
   }
 
   String? _validateField(String? value, String fieldName) {
+    // Validasi sederhana untuk field form.
+    // Input: value (String?) dan fieldName (untuk pesan error).
+    // Output: null jika valid, String pesan error jika kosong.
     if (value == null || value.trim().isEmpty) {
       return 'Mohon isi $fieldName';
     }
@@ -33,6 +41,7 @@ class _LaporanFormScreenState extends State<LaporanFormScreen> {
   }
 
   Future<void> _selectDate(BuildContext context) async {
+    // Menampilkan date picker dan menyimpan tanggal yang dipilih di _selectedDate.
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: _selectedDate,
@@ -55,6 +64,15 @@ class _LaporanFormScreenState extends State<LaporanFormScreen> {
   }
 
   Future<void> _submitForm() async {
+    // Menangani submit form:
+    // 1. Validasi form.
+    // 2. Ambil current user id (harus login).
+    // 3. Insert record ke tabel `reports` dengan fields dari form.
+    // 4. Tampilkan SnackBar sukses atau error.
+    // Error modes:
+    // - User tidak terautentikasi: lempar Exception.
+    // - PostgrestException: tampilkan pesan DB.
+    // - Exception lain: tampilkan pesan generik.
     if (!_formKey.currentState!.validate()) return;
 
     setState(() {
@@ -89,6 +107,8 @@ class _LaporanFormScreenState extends State<LaporanFormScreen> {
       );
     } on PostgrestException catch (e) {
       if (!mounted) return;
+      // Tangani kesalahan PostgREST (constraint/db error) dan tampilkan pesan yang
+      // jelas kepada pengguna.
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Database Error: ${e.message}'),
@@ -97,6 +117,7 @@ class _LaporanFormScreenState extends State<LaporanFormScreen> {
       );
     } catch (e) {
       if (!mounted) return;
+      // Tangani error umum.
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error: ${e.toString()}'),
@@ -114,6 +135,10 @@ class _LaporanFormScreenState extends State<LaporanFormScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Membangun UI form laporan. Termasuk:
+    // - Field input (judul, lokasi, tanggal, deskripsi)
+    // - Validasi sederhana pada setiap field
+    // - Tombol submit yang memanggil _submitForm
     return Scaffold(
       appBar: AppBar(
         title: const Text('Form Laporan Baru'),

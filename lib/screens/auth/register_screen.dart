@@ -2,6 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class RegisterScreen extends StatefulWidget {
+  /// RegisterScreen: layar pendaftaran pengguna.
+  ///
+  /// Menyediakan form nama, email, password, dan pemilihan role (teknisi/supervisor).
+  /// Setelah pendaftaran, akan memanggil RPC `create_user_profile` untuk membuat profil
+  /// (nama, email, role) di database, lalu menampilkan notifikasi dan kembali ke layar login.
   const RegisterScreen({Key? key}) : super(key: key);
 
   @override
@@ -19,6 +24,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   void dispose() {
+    // Dispose controller untuk mencegah memory leak saat widget dibuang.
     _nameCtrl.dispose();
     _emailCtrl.dispose();
     _passwordCtrl.dispose();
@@ -26,6 +32,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Future<void> _register() async {
+    // Menangani alur pendaftaran pengguna menggunakan Supabase.
+    // Input: field form (nama, email, password, role).
+    // Langkah:
+    // 1. Validasi form.
+    // 2. Panggil Supabase.auth.signUp untuk membuat akun (email/password).
+    // 3. Jika user dibuat, panggil RPC 'create_user_profile' untuk menyimpan profil tambahan
+    //    (user_id, email, full_name, role) di database.
+    // 4. Tampilkan SnackBar sukses dan kembali ke layar sebelumnya.
+    // Penanganan error:
+    // - AuthException: tampilkan pesan dari Supabase.
+    // - Error lain: tampilkan pesan generik dan log ke konsol.
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _loading = true);
@@ -76,6 +93,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       Navigator.pop(context);
     } on AuthException catch (e) {
       if (!mounted) return;
+      // Tangani kesalahan autentikasi (mis. email sudah terdaftar, password lemah)
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Auth error: ${e.message}'),
@@ -84,6 +102,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       );
     } catch (e) {
       if (!mounted) return;
+      // Log error untuk debugging lokal. Jangan ekspos detail sensitif ke user.
       print('Register error: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -126,6 +145,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     border: OutlineInputBorder(),
                     prefixIcon: Icon(Icons.email),
                   ),
+                  // Validator: cek kosong dan format sederhana (mengandung '@').
                   validator: (v) {
                     if (v?.trim().isEmpty ?? true) return 'Email wajib diisi';
                     if (!v!.contains('@')) return 'Email tidak valid';
@@ -147,6 +167,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       onPressed: () => setState(() => _obscure = !_obscure),
                     ),
                   ),
+                  // Validator password: minimal 6 karakter.
                   validator: (v) {
                     if (v?.isEmpty ?? true) return 'Password wajib diisi';
                     if (v!.length < 6) return 'Minimal 6 karakter';

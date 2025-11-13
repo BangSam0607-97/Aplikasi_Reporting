@@ -5,6 +5,10 @@ import '../supervisor/dashboard_supervisor_screen.dart';
 import 'register_screen.dart'; // baru
 
 class LoginScreen extends StatefulWidget {
+  /// LoginScreen: layar untuk autentikasi pengguna.
+  ///
+  /// Menyediakan form email/password dan dropdown role (teknisi/supervisor).
+  /// Setelah login berhasil, akan menuju ke dashboard sesuai role.
   const LoginScreen({Key? key}) : super(key: key);
 
   @override
@@ -21,12 +25,16 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   void dispose() {
+    // Dispose controllers untuk mencegah memory leak saat widget dihapus.
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
 
   String? _validateEmail(String? value) {
+    // Validasi sederhana untuk email.
+    // Input: value (String?) — email yang dimasukkan user.
+    // Output: null jika valid, String pesan error jika tidak valid.
     if (value == null || value.isEmpty) {
       return 'Email tidak boleh kosong';
     }
@@ -37,6 +45,9 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   String? _validatePassword(String? value) {
+    // Validasi sederhana untuk password.
+    // Input: value (String?) — password user.
+    // Output: null jika panjang >=6, String pesan error jika tidak valid.
     if (value == null || value.isEmpty) {
       return 'Password tidak boleh kosong';
     }
@@ -47,6 +58,19 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _handleLogin() async {
+    // Menangani proses login menggunakan Supabase.
+    //
+    // Langkah:
+    // 1. Validasi form.
+    // 2. Panggil Supabase auth.signInWithPassword dengan email/password.
+    // 3. Jika user ditemukan, ambil role dari tabel 'users' berdasarkan id.
+    // 4. Jika role sesuai dengan pilihan dropdown, navigasi ke dashboard.
+    // 5. Tangani error AuthException dan error umum.
+    //
+    // Error modes:
+    // - Form invalid: tidak lanjut.
+    // - AuthException: tampilkan SnackBar dengan pesan dari Supabase.
+    // - Kegagalan lain: tampilkan SnackBar dengan pesan generik.
     if (!_formKey.currentState!.validate()) return;
 
     setState(() {
@@ -89,6 +113,7 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         );
       } else {
+        // Jika role di database tidak sesuai pemilihan user, beri tahu.
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Role tidak sesuai'),
@@ -120,6 +145,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Membangun UI layar login.
+    // Komponen penting:
+    // - Dropdown role: pilih 'teknisi' atau 'supervisor'
+    // - TextFormField email & password dengan validator
+    // - Tombol Login yang memanggil _handleLogin saat ditekan
     return Scaffold(
       body: SafeArea(
         child: Center(

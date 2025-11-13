@@ -4,6 +4,11 @@ import 'laporan_form_screen.dart';
 import '../auth/login_screen.dart';
 
 class DashboardTeknisiScreen extends StatefulWidget {
+  /// DashboardTeknisiScreen: tampilan utama untuk user dengan role Teknisi.
+  ///
+  /// Menampilkan ringkasan laporan milik teknisi (tertunda/diproses/selesai), daftar
+  /// laporan, dan tombol untuk membuat laporan baru. Menyediakan aksi untuk
+  /// menandai laporan sebagai selesai dan logout.
   const DashboardTeknisiScreen({Key? key}) : super(key: key);
 
   @override
@@ -22,10 +27,14 @@ class _DashboardTeknisiScreenState extends State<DashboardTeknisiScreen> {
   @override
   void initState() {
     super.initState();
+    // Inisialisasi state dan mulai memuat data awal (nama user + daftar laporan).
     _loadData();
   }
 
   Future<void> _loadData() async {
+    // Load user profile (full_name) and reports belonging to current user.
+    // Outputs: updates _userName, _laporanTertunda/_laporanDiproses/_laporanSelesai,
+    // and _laporanList. Errors are shown via SnackBar and _loading toggled off.
     setState(() => _loading = true);
 
     try {
@@ -34,7 +43,7 @@ class _DashboardTeknisiScreenState extends State<DashboardTeknisiScreen> {
         throw Exception('User not authenticated');
       }
 
-      // Get user name
+      // Ambil nama user
       final userResp = await Supabase.instance.client
           .from('users')
           .select('full_name')
@@ -43,7 +52,7 @@ class _DashboardTeknisiScreenState extends State<DashboardTeknisiScreen> {
       final userName =
           (userResp as Map<String, dynamic>)['full_name'] as String?;
 
-      // Get reports
+      // Ambil laporan milik teknisi (terbaru dulu)
       final reportsResp = await Supabase.instance.client
           .from('reports')
           .select()
@@ -74,7 +83,8 @@ class _DashboardTeknisiScreenState extends State<DashboardTeknisiScreen> {
       });
     } catch (e) {
       if (!mounted) return;
-      print('Error loading data: $e');
+      // Log singkat untuk debugging, tampilkan SnackBar agar user tahu.
+      debugPrint('Error loading data: $e');
       setState(() => _loading = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -86,6 +96,8 @@ class _DashboardTeknisiScreenState extends State<DashboardTeknisiScreen> {
   }
 
   Future<void> _logout() async {
+    // Tampilkan konfirmasi logout; jika dikonfirmasi, panggil Supabase signOut
+    // dan navigasi kembali ke LoginScreen.
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -112,6 +124,7 @@ class _DashboardTeknisiScreenState extends State<DashboardTeknisiScreen> {
   }
 
   Widget _buildStatusCard(String title, int count, Color color) {
+    // Kartu ringkasan kecil menampilkan jumlah per status (digunakan di header).
     return Expanded(
       child: Card(
         elevation: 4,
@@ -145,6 +158,10 @@ class _DashboardTeknisiScreenState extends State<DashboardTeknisiScreen> {
   }
 
   Future<void> _markReportDone(String reportId) async {
+    // Tandai laporan milik current user sebagai 'selesai'.
+    // - Mencegah duplikasi request menggunakan _updatingReportIds.
+    // - Memeriksa bahwa user saat ini terautentikasi.
+    // - Update hanya ketika teknisi_id cocok dengan current user (menghindari RLS error).
     if (_updatingReportIds.contains(reportId)) return;
     final userId = Supabase.instance.client.auth.currentUser?.id;
     if (userId == null) {
@@ -161,7 +178,7 @@ class _DashboardTeknisiScreenState extends State<DashboardTeknisiScreen> {
     debugPrint('TAPPED _markReportDone: $reportId by $userId');
     setState(() => _updatingReportIds.add(reportId));
     try {
-      // only update if the current user is the teknisi_id (prevents RLS rejection)
+      // Hanya update jika teknisi_id cocok (untuk menghindari penolakan oleh RLS)
       final resp = await Supabase.instance.client
           .from('reports')
           .update({'status': 'selesai'})
@@ -169,7 +186,7 @@ class _DashboardTeknisiScreenState extends State<DashboardTeknisiScreen> {
           .eq('teknisi_id', userId)
           .select();
 
-      // resp may be List or Map depending on supabase sdk; treat empty result as failure
+      // Supabase SDK bisa mengembalikan List atau Map; anggap berhasil jika non-empty
       final updated = resp is List ? resp.isNotEmpty : resp != null;
 
       if (!updated) {
@@ -183,6 +200,7 @@ class _DashboardTeknisiScreenState extends State<DashboardTeknisiScreen> {
           ),
         );
       } else {
+        // Reload data lokal setelah sukses
         await _loadData();
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -208,6 +226,9 @@ class _DashboardTeknisiScreenState extends State<DashboardTeknisiScreen> {
   }
 
   Widget _buildLaporanItem(Map<String, dynamic> laporan) {
+    // Membangun card untuk satu laporan.
+    // Menentukan warna status, mengecek apakah user saat ini pemilik (teknisi yang sama),
+    // dan menampilkan aksi untuk menandai selesai jika owner dan status belum selesai.
     final status = (laporan['status'] ?? '').toString();
     final statusColor = status == 'tertunda'
         ? Colors.orange
@@ -286,6 +307,8 @@ class _DashboardTeknisiScreenState extends State<DashboardTeknisiScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Bangun UI dashboard teknisi. Tampilan berubah berdasarkan _loading dan
+    // isi _laporanList.
     return Scaffold(
       appBar: AppBar(
         title: const Text('Dashboard Teknisi'),
