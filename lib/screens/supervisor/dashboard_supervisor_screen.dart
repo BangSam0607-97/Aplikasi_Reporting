@@ -194,6 +194,44 @@ class _DashboardSupervisorScreenState extends State<DashboardSupervisorScreen> {
     }
   }
 
+  // Tambahan: fungsi untuk menandai laporan selesai (dipanggil dari daftar diproses)
+  Future<void> _completeReport(String reportId) async {
+    if (_loadingReportIds.contains(reportId)) return;
+    setState(() => _loadingReportIds.add(reportId));
+    try {
+      await Supabase.instance.client
+          .from('reports')
+          .update({'status': 'selesai'})
+          .eq('id', reportId)
+          .select();
+
+      // Refresh current filtered view jika perlu
+      if (_selectedFilter == 'diproses') {
+        await _loadReportsByStatus('diproses');
+      }
+      await _loadStats();
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Laporan dipindahkan ke Selesai'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal update: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (!mounted) return;
+      setState(() => _loadingReportIds.remove(reportId));
+    }
+  }
+
   // Tambahan: fungsi logout
   Future<void> _logout() async {
     final doLogout = await showDialog<bool>(
