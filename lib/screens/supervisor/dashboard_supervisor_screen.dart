@@ -17,6 +17,8 @@ class _DashboardSupervisorScreenState extends State<DashboardSupervisorScreen> {
   int _totalDiproses = 0;
   int _totalSelesai = 0;
   List<Map<String, dynamic>> _teknisiStats = [];
+  List<Map<String, dynamic>> _filteredReports = [];
+  String? _selectedFilter; // 'tertunda', 'diproses', 'selesai', or null
 
   // cache laporan per teknisi
   final Map<String, List<Map<String, dynamic>>> _reportsByTeknisi = {};
@@ -104,8 +106,33 @@ class _DashboardSupervisorScreenState extends State<DashboardSupervisorScreen> {
     }
   }
 
+  Future<void> _loadReportsByStatus(String status) async {
+    try {
+      final resp = await Supabase.instance.client
+          .from('reports')
+          .select()
+          .eq('status', status)
+          .order('created_at', ascending: false);
+
+      final List reports = resp as List<dynamic>;
+      if (!mounted) return;
+
+      setState(() {
+        _filteredReports = reports
+            .map((r) => Map<String, dynamic>.from(r))
+            .toList();
+        _selectedFilter = status;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal memuat laporan: ${e.toString()}')),
+      );
+    }
+  }
+
   Future<void> _fetchReportsForTeknisi(String teknisiId) async {
-    if (_reportsByTeknisi.containsKey(teknisiId)) return; // already loaded
+    if (_reportsByTeknisi.containsKey(teknisiId)) return;
     try {
       final resp = await Supabase.instance.client
           .from('reports')
@@ -136,14 +163,20 @@ class _DashboardSupervisorScreenState extends State<DashboardSupervisorScreen> {
           .update({'status': 'diproses'})
           .eq('id', reportId)
           .select();
-      // refresh local cache + stats
+
       _reportsByTeknisi.remove(teknisiId);
       await _fetchReportsForTeknisi(teknisiId);
+
+      // Reload filtered reports if tertunda is selected
+      if (_selectedFilter == 'tertunda') {
+        await _loadReportsByStatus('tertunda');
+      }
+
       await _loadStats();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Laporan disetujui (diproses)'),
+          content: Text('Laporan disetujui dan pindah ke Diproses'),
           backgroundColor: Colors.green,
         ),
       );
@@ -190,35 +223,195 @@ class _DashboardSupervisorScreenState extends State<DashboardSupervisorScreen> {
     }
   }
 
-  Widget _statusCard(String label, int count, Color color) {
+  Widget _statusCard(String label, int count, Color color, String filterKey) {
     return Expanded(
-      child: Card(
-        elevation: 2,
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            children: [
-              Text(
-                label,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14,
-                ),
-                textAlign: TextAlign.center,
+      child: GestureDetector(
+        onTap: () => _loadReportsByStatus(filterKey),
+        child: Card(
+          elevation: 2,
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(4),
+              border: _selectedFilter == filterKey
+                  ? Border.all(color: color, width: 2)
+                  : null,
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                children: [
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    count.toString(),
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: color,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 8),
-              Text(
-                count.toString(),
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: color,
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildFilteredReportsList() {
+    if (_filteredReports.isEmpty) {
+      return const Center(child: Text('Tidak ada laporan untuk filter ini'));
+    }
+
+    return ListView.builder(
+      itemCount: _filteredReports.length,
+      itemBuilder: (context, index) {
+        final r = _filteredReports[index];
+        final status = (r['status'] ?? '').toString();
+        final jid = (r['id'] ?? '').toString();
+        final judul = r['judul_pekerjaan'] ?? '-';
+        final lokasi = r['lokasi_pekerjaan'] ?? '-';
+        final deskripsi = r['deskripsi'] ?? '-';
+        final tanggal = r['tanggal_pekerjaan'] ?? '-';
+        final teknisiId = (r['teknisi_id'] ?? '').toString();
+
+        Color statusColor = Colors.grey;
+        if (status == 'tertunda') statusColor = Colors.orange;
+        if (status == 'diproses') statusColor = Colors.blue;
+        if (status == 'selesai') statusColor = Colors.green;
+
+        return Card(
+          margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+          child: ListTile(
+            isThreeLine: true,
+            title: Text(
+              judul,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 4),
+                Text('Lokasi: $lokasi', style: const TextStyle(fontSize: 12)),
+                const SizedBox(height: 2),
+                Text('Tanggal: $tanggal', style: const TextStyle(fontSize: 12)),
+                const SizedBox(height: 6),
+                Text(
+                  'Deskripsi: $deskripsi',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontStyle: FontStyle.italic,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+            trailing: SizedBox(
+              width: 100,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Chip(
+                    label: Text(
+                      status.toUpperCase(),
+                      style: const TextStyle(fontSize: 9),
+                    ),
+                    backgroundColor: statusColor.withOpacity(0.2),
+                    labelStyle: TextStyle(
+                      color: statusColor,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 9,
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  // Hapus checklist hanya di status tertunda
+                  if (status != 'tertunda')
+                    if (_loadingReportIds.contains(jid))
+                      const SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    else
+                      IconButton(
+                        icon: const Icon(
+                          Icons.check_circle,
+                          color: Colors.green,
+                          size: 20,
+                        ),
+                        tooltip: 'Selesai',
+                        onPressed: () => _approveReport(jid, teknisiId),
+                        padding: EdgeInsets.zero,
+                      ),
+                ],
+              ),
+            ),
+            onTap: () {
+              showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: Text(judul),
+                  content: SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Status: $status',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 8),
+                        Text('Lokasi: $lokasi'),
+                        const SizedBox(height: 8),
+                        Text('Tanggal: $tanggal'),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Deskripsi:',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        Text(deskripsi),
+                      ],
+                    ),
+                  ),
+                  actions: [
+                    if (status == 'tertunda')
+                      ElevatedButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          _approveReport(jid, teknisiId);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                        ),
+                        child: const Text(
+                          'Setujui',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      ),
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Tutup'),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        );
+      },
     );
   }
 
@@ -226,6 +419,9 @@ class _DashboardSupervisorScreenState extends State<DashboardSupervisorScreen> {
     final teknisiId = item['id'] as String;
     final name = item['name'] ?? 'Unknown';
     final total = item['total'] ?? 0;
+    final tertunda = item['tertunda'] ?? 0;
+    final diproses = item['diproses'] ?? 0;
+    final selesai = item['selesai'] ?? 0;
 
     final reports = _reportsByTeknisi[teknisiId];
 
@@ -233,7 +429,36 @@ class _DashboardSupervisorScreenState extends State<DashboardSupervisorScreen> {
       margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
       child: ExpansionTile(
         title: Text(name, style: const TextStyle(fontWeight: FontWeight.w500)),
-        subtitle: Text('Total: $total laporan'),
+        subtitle: Wrap(
+          spacing: 4,
+          runSpacing: 0,
+          children: [
+            Chip(
+              label: Text('Total: $total'),
+              backgroundColor: Colors.grey.withOpacity(0.2),
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+              labelStyle: const TextStyle(fontSize: 9),
+            ),
+            Chip(
+              label: Text('Tertunda: $tertunda'),
+              backgroundColor: Colors.orange.withOpacity(0.2),
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+              labelStyle: const TextStyle(fontSize: 9, color: Colors.orange),
+            ),
+            Chip(
+              label: Text('Diproses: $diproses'),
+              backgroundColor: Colors.blue.withOpacity(0.2),
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+              labelStyle: const TextStyle(fontSize: 9, color: Colors.blue),
+            ),
+            Chip(
+              label: Text('Selesai: $selesai'),
+              backgroundColor: Colors.green.withOpacity(0.2),
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+              labelStyle: const TextStyle(fontSize: 9, color: Colors.green),
+            ),
+          ],
+        ),
         onExpansionChanged: (expanded) {
           if (expanded) _fetchReportsForTeknisi(teknisiId);
         },
@@ -254,63 +479,119 @@ class _DashboardSupervisorScreenState extends State<DashboardSupervisorScreen> {
                 final status = (r['status'] ?? '').toString();
                 final jid = (r['id'] ?? '').toString();
                 final judul = r['judul_pekerjaan'] ?? '-';
+                final lokasi = r['lokasi_pekerjaan'] ?? '-';
+                final deskripsi = r['deskripsi'] ?? '-';
                 final tanggal = r['tanggal_pekerjaan'] ?? '-';
                 Color statusColor = Colors.grey;
                 if (status == 'tertunda') statusColor = Colors.orange;
                 if (status == 'diproses') statusColor = Colors.blue;
                 if (status == 'selesai') statusColor = Colors.green;
 
-                return ListTile(
-                  title: Text(judul),
-                  subtitle: Text('Tanggal: $tanggal'),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Chip(
-                        label: Text(status.toUpperCase()),
-                        backgroundColor: statusColor.withOpacity(0.2),
-                        labelStyle: TextStyle(
-                          color: statusColor,
-                          fontWeight: FontWeight.bold,
+                return Card(
+                  margin: const EdgeInsets.symmetric(
+                    vertical: 6,
+                    horizontal: 8,
+                  ),
+                  child: ListTile(
+                    isThreeLine: true,
+                    title: Text(
+                      judul,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 4),
+                        Text(
+                          'Lokasi: $lokasi',
+                          style: const TextStyle(fontSize: 12),
                         ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Tanggal: $tanggal',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Deskripsi: $deskripsi',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontStyle: FontStyle.italic,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                    trailing: SizedBox(
+                      width: 80,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Chip(
+                            label: Text(
+                              status.toUpperCase(),
+                              style: const TextStyle(fontSize: 10),
+                            ),
+                            backgroundColor: statusColor.withOpacity(0.2),
+                            labelStyle: TextStyle(
+                              color: statusColor,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 10,
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 8),
-                      if (status == 'tertunda')
-                        _loadingReportIds.contains(jid)
-                            ? const SizedBox(
-                                width: 36,
-                                height: 36,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
+                    ),
+                    onTap: () {
+                      showDialog(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: Text(judul),
+                          content: SingleChildScrollView(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  'Status: $status',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
-                              )
-                            : IconButton(
-                                icon: const Icon(
-                                  Icons.check_circle,
-                                  color: Colors.green,
+                                const SizedBox(height: 8),
+                                Text('Lokasi: $lokasi'),
+                                const SizedBox(height: 8),
+                                Text('Tanggal: $tanggal'),
+                                const SizedBox(height: 8),
+                                const Text(
+                                  'Deskripsi:',
+                                  style: TextStyle(fontWeight: FontWeight.bold),
                                 ),
-                                tooltip: 'Setujui / Proses',
-                                onPressed: () => _approveReport(jid, teknisiId),
-                              ),
-                    ],
+                                Text(deskripsi),
+                              ],
+                            ),
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: const Text('Tutup'),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
                   ),
                 );
               }).toList(),
             ),
         ],
       ),
-    );
-  }
-
-  Widget _statusChip(String label, int count, Color color) {
-    return Chip(
-      label: Text(
-        '$label: $count',
-        style: TextStyle(
-          color: color is MaterialColor ? color.shade900 : color,
-        ),
-      ),
-      backgroundColor: color.withOpacity(0.2),
     );
   }
 
@@ -357,16 +638,32 @@ class _DashboardSupervisorScreenState extends State<DashboardSupervisorScreen> {
                     ],
                   ),
                 )
-              : Column(
+              : _selectedFilter == null
+              ? Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Row(
                       children: [
-                        _statusCard('Tertunda', _totalTertunda, Colors.orange),
+                        _statusCard(
+                          'Tertunda',
+                          _totalTertunda,
+                          Colors.orange,
+                          'tertunda',
+                        ),
                         const SizedBox(width: 8),
-                        _statusCard('Diproses', _totalDiproses, Colors.blue),
+                        _statusCard(
+                          'Diproses',
+                          _totalDiproses,
+                          Colors.blue,
+                          'diproses',
+                        ),
                         const SizedBox(width: 8),
-                        _statusCard('Selesai', _totalSelesai, Colors.green),
+                        _statusCard(
+                          'Selesai',
+                          _totalSelesai,
+                          Colors.green,
+                          'selesai',
+                        ),
                       ],
                     ),
                     const Padding(
@@ -397,6 +694,57 @@ class _DashboardSupervisorScreenState extends State<DashboardSupervisorScreen> {
                               },
                             ),
                     ),
+                  ],
+                )
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        _statusCard(
+                          'Tertunda',
+                          _totalTertunda,
+                          Colors.orange,
+                          'tertunda',
+                        ),
+                        const SizedBox(width: 8),
+                        _statusCard(
+                          'Diproses',
+                          _totalDiproses,
+                          Colors.blue,
+                          'diproses',
+                        ),
+                        const SizedBox(width: 8),
+                        _statusCard(
+                          'Selesai',
+                          _totalSelesai,
+                          Colors.green,
+                          'selesai',
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8.0),
+                      child: Row(
+                        children: [
+                          Text(
+                            'Laporan: $_selectedFilter',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const Spacer(),
+                          TextButton(
+                            onPressed: () =>
+                                setState(() => _selectedFilter = null),
+                            child: const Text('Kembali'),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Expanded(child: _buildFilteredReportsList()),
                   ],
                 ),
         ),

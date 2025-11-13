@@ -55,7 +55,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       }
 
       // Create profile via RPC
-      final rpcResponse = await Supabase.instance.client.rpc(
+      await Supabase.instance.client.rpc(
         'create_user_profile',
         params: {
           'user_id': userId,
