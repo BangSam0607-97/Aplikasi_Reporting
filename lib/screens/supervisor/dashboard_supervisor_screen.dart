@@ -209,6 +209,44 @@ class _DashboardSupervisorScreenState extends State<DashboardSupervisorScreen> {
     }
   }
 
+  // Tambahan: fungsi untuk menandai laporan selesai (dipanggil dari daftar diproses)
+  Future<void> _completeReport(String reportId) async {
+    if (_loadingReportIds.contains(reportId)) return;
+    setState(() => _loadingReportIds.add(reportId));
+    try {
+      await Supabase.instance.client
+          .from('reports')
+          .update({'status': 'selesai'})
+          .eq('id', reportId)
+          .select();
+
+      // Refresh current filtered view jika perlu
+      if (_selectedFilter == 'diproses') {
+        await _loadReportsByStatus('diproses');
+      }
+      await _loadStats();
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Laporan dipindahkan ke Selesai'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal update: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (!mounted) return;
+      setState(() => _loadingReportIds.remove(reportId));
+    }
+  }
+
   // Tambahan: fungsi logout
   Future<void> _logout() async {
     // Confirm logout and call Supabase signOut, then navigate to LoginScreen.
@@ -325,7 +363,7 @@ class _DashboardSupervisorScreenState extends State<DashboardSupervisorScreen> {
                 Text('Tanggal: $tanggal', style: const TextStyle(fontSize: 12)),
                 const SizedBox(height: 6),
                 Text(
-                  'Deskripsi: $deskripsi',
+                  deskripsi,
                   style: const TextStyle(
                     fontSize: 11,
                     fontStyle: FontStyle.italic,
@@ -336,7 +374,7 @@ class _DashboardSupervisorScreenState extends State<DashboardSupervisorScreen> {
               ],
             ),
             trailing: SizedBox(
-              width: 100,
+              width: 120,
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -357,25 +395,34 @@ class _DashboardSupervisorScreenState extends State<DashboardSupervisorScreen> {
                     ),
                   ),
                   const SizedBox(width: 6),
-                  // Hapus checklist hanya di status tertunda
-                  if (status != 'tertunda')
-                    if (_loadingReportIds.contains(jid))
-                      const SizedBox(
-                        width: 24,
-                        height: 24,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    else
-                      IconButton(
-                        icon: const Icon(
-                          Icons.check_circle,
-                          color: Colors.green,
-                          size: 20,
-                        ),
-                        tooltip: 'Selesai',
-                        onPressed: () => _approveReport(jid, teknisiId),
-                        padding: EdgeInsets.zero,
+                  if (_loadingReportIds.contains(jid))
+                    const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  else if (status == 'diproses')
+                    IconButton(
+                      icon: const Icon(
+                        Icons.check_circle,
+                        color: Colors.green,
+                        size: 20,
                       ),
+                      tooltip: 'Selesai',
+                      onPressed: () => _completeReport(jid),
+                      padding: EdgeInsets.zero,
+                    )
+                  else if (status == 'tertunda')
+                    IconButton(
+                      icon: const Icon(
+                        Icons.thumb_up,
+                        color: Colors.blue,
+                        size: 20,
+                      ),
+                      tooltip: 'Setujui',
+                      onPressed: () => _approveReport(jid, teknisiId),
+                      padding: EdgeInsets.zero,
+                    ),
                 ],
               ),
             ),
