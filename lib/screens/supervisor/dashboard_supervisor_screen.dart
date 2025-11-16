@@ -450,6 +450,13 @@ class _DashboardSupervisorScreenState extends State<DashboardSupervisorScreen> {
                           style: TextStyle(fontWeight: FontWeight.bold),
                         ),
                         Text(deskripsi),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'Foto:',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 8),
+                        _buildPhotoPreview(jid),
                       ],
                     ),
                   ),
@@ -820,5 +827,111 @@ class _DashboardSupervisorScreenState extends State<DashboardSupervisorScreen> {
         ),
       ),
     );
+  }
+
+  Widget _buildPhotoPreview(String reportId) {
+    /// Build a widget to display photos for a report.
+    /// Supports both normalized (report_photos table) and simple (foto_urls column) approaches.
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: _fetchReportPhotos(reportId),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const SizedBox(
+            height: 60,
+            child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+          );
+        }
+        if (snapshot.hasError) {
+          return Text('Error memuat foto: ${snapshot.error}');
+        }
+        final photos = snapshot.data ?? [];
+        if (photos.isEmpty) {
+          return const Text('Tidak ada foto untuk laporan ini');
+        }
+        return SizedBox(
+          height: 100,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            itemCount: photos.length,
+            itemBuilder: (context, index) {
+              final photoUrl = photos[index]['photo_url'] as String? ?? '';
+              if (photoUrl.isEmpty) {
+                return Container(
+                  width: 100,
+                  height: 100,
+                  margin: const EdgeInsets.only(right: 8),
+                  color: Colors.grey[200],
+                  child: const Icon(Icons.broken_image),
+                );
+              }
+              return Padding(
+                padding: const EdgeInsets.only(right: 8.0),
+                child: GestureDetector(
+                  onTap: () {
+                    showDialog(
+                      context: context,
+                      builder: (context) =>
+                          Dialog(child: Image.network(photoUrl)),
+                    );
+                  },
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.network(
+                      photoUrl,
+                      width: 100,
+                      height: 100,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          width: 100,
+                          height: 100,
+                          color: Colors.grey[200],
+                          child: const Icon(Icons.broken_image),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchReportPhotos(String reportId) async {
+    /// Fetch photos for a report from either report_photos table or foto_urls column.
+    /// Try report_photos table first (normalized approach), fallback to foto_urls column.
+    try {
+      final supabase = Supabase.instance.client;
+
+      // Try to fetch from report_photos table (normalized approach)
+      try {
+        final photosData = await supabase
+            .from('report_photos')
+            .select('photo_url')
+            .eq('report_id', reportId);
+
+        if (photosData != null && photosData.isNotEmpty) {
+          return List<Map<String, dynamic>>.from(photosData);
+        }
+      } catch (_) {
+        // Table might not exist or query failed, try fallback
+      }
+
+      // Fallback: fetch from foto_urls column (simple approach)
+      final reportData = await supabase
+          .from('reports')
+          .select('foto_urls')
+          .eq('id', reportId)
+          .single();
+
+      final fotoUrls = reportData['foto_urls'] as List<dynamic>? ?? [];
+      return fotoUrls.map((url) => {'photo_url': url.toString()}).toList();
+    } catch (e) {
+      debugPrint('Error fetching report photos: $e');
+      return [];
+    }
   }
 }
